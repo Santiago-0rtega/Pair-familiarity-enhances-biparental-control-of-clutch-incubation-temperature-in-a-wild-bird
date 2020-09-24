@@ -1,1 +1,7 @@
 # Pair-familiarity-enhances-biparental-control-of-clutch-incubation-temperature-in-a-wild-bird
+
+Coded by Oscar Sánchez-Macouzet
+
+##Abstract 
+
+In socially monogamous birds, coordination of shared reproductive activities can increase reproductive success, more so when pair members are familiarized or, in some instances, when a greater age difference exists between the partners. However, the mechanisms behind these synergistic familiarity- and age-related benefits remain poorly understood. In the present study, through the deployment of freely mobile egg-shaped data loggers, we investigated whether maintenance of optimal egg temperature during incubation could be the behavioural mechanism behind the benefit of pair familiarity or parental age difference in the Blue-footed booby (Sula nebouxii). We found that familiar pairs were able to tightly control their clutch temperature, maintaining it at the inferred optimal temperature (the population average) throughout day and night, whereas clutches of unfamiliar pairs overheated during the day. This superior control of incubation temperature by familiar partners is consistent with this species’ strong mate familiarity effects and could arise due to enhanced coordination in parental turn-taking or nest-relief timing. We suggest that regulation of egg temperatures could be one of the mechanisms driving the benefits associated to pair familiarity in this species. Temperature control during incubation is potentially an additional mechanism driving the benefits of mate familiarity and serial monogamy in birds.
