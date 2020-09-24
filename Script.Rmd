@@ -1,0 +1,250 @@
+---
+title: Pair familiarity enhances biparental control of clutch incubation temperature
+  in a wild bird
+author: "Oscar SM"
+date: "23/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# ----------------- LIBRARIES ----------------- #
+library(MASS)
+library(car)
+library(nlme)
+library(AICcmodavg)
+```
+
+```{r}
+# ----------------- DATA LOAD ----------------- #
+setwd()
+data5all <- read.table(file = "IncubationData.txt", sep = ";", header = TRUE)
+
+non.synch <- which(data5all$synALL == "0")
+data5f1 <- data5all[-non.synch, ]
+
+atormentados <- which(data5f1$Tormenta == "1")
+data5f2 <- data5f1[-atormentados, ]
+
+data5 <- data5f2
+
+rm(data5all,data5f1,data5f2)
+
+attach(data5)
+str(data5)
+head(data5)
+
+```
+
+
+```{r}
+# ----------------- VARIABLES ----------------- #
+# RANDOM EFFECTS
+BATCH<-as.factor(Batch)
+is.factor(BATCH)
+summary(BATCH)
+DAY<-as.factor(Day)
+is.factor(DAY)
+summary(DAY)
+NEST<-as.factor(Nest)
+is.factor(NEST)
+summary(NEST)
+
+# DEPENDENT VARIABLES
+clutchTemp <- as.numeric(eggTemp)
+summary(clutchTemp)
+diffTemp <- as.numeric(difTemp)
+summary(diffTemp)
+
+# COVARIATES
+AirTemp <- (airTemp - mean(airTemp))/ (2*sd(airTemp))
+summary(AirTemp)
+
+# PREDICTORS
+# Hypothesized
+layDate <- (laydateRefin - mean(laydateRefin))/ (2*sd(laydateRefin))
+summary(layDate)
+clAge <- (clutchAge - mean(clutchAge))/ (2*sd(clutchAge))
+summary(clAge)
+clVolume <- (clutchVol - mean(clutchVol))/ (2*sd(clutchVol))
+summary(clVolume)
+timeCat <- as.factor(timeCat2)
+is.factor(timeCat)
+levels(timeCat)[1]
+levels(timeCat)[2]
+
+dayTime <- levels(timeCat2)[1]
+dayTime <- recode(timeCat2, "dayTime=1; else=0", as.numeric=T, as.factor=F)
+dayTimeC <- dayTime - mean(dayTime)
+summary(dayTimeC)
+
+nightTime <- levels(timeCat2)[2]
+nightTime <- recode(timeCat2, "nightTime=1; else=0", as.numeric=T, as.factor=F)
+nightTimeC <- nightTime - mean(nightTime)
+summary(nightTimeC)
+
+# Of interest
+absDifAge<-abs(difAge)
+AgeDiff <- (absDifAge - mean(absDifAge))/ (2*sd(absDifAge))
+summary(AgeDiff)
+PBDc <- as.ordered(PBDcons)
+is.ordered(PBDc)
+summary(PBDc)
+PBDt <- as.ordered(PBDtotal)
+is.ordered(PBDt)
+summary(PBDt)
+PFamiliarity <- as.factor(Familiarity)
+is.factor(PFamiliarity)
+levels(PFamiliarity)[1]
+levels(PFamiliarity)[2]
+
+PBDfam <- levels(PFamiliarity)[2]
+PBDfam <- recode(PFamiliarity, "PBDfam=1; else=0", as.numeric=T, as.factor=F)
+PBDfamC <- PBDfam - mean(PBDfam)
+summary(PBDfamC)
+
+PBDnon.fam <- levels(PFamiliarity)[1]
+PBDnon.fam <- recode(PFamiliarity, "PBDnon.fam=1; else=0", as.numeric=T, as.factor=F)
+PBDnon.famC <- PBDnon.fam - mean(PBDnon.fam)
+summary(PBDnon.famC)
+
+# Confirm the usable length of vectors required during the analysis
+c(length(na.exclude(BATCH)),length(na.exclude(NEST)),length(na.exclude(clutchTemp)),length(na.exclude(AirTemp)),length(na.exclude(dayTimeC)),length(na.exclude(layDate)),length(na.exclude(clAge)),length(na.exclude(clVolume)),length(na.exclude(AgeDiff)),length(na.exclude(PBDfamC)) )
+
+```
+
+
+```{r}
+# Setting the correlation structure to be used in the competing models
+corfunc <- corAR1(0.9556667, form = ~1|BATCH/NEST)                   
+corfunc <- corARMA(c(-0.1,-0.1), p=2, q=0, form = ~1|BATCH/NEST)     
+
+Sys.time()
+
+# Base model (Fixed covariates)
+model0 <- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume, correlation =  corfunc, weights = varExp(form = ~AirTemp), method = "ML" )
+Sys.time()
+
+# Simple and additive effects
+model1 <- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + AgeDiff,           correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varPower(form = ~AgeDiff)),                      method = "ML" )
+Sys.time()
+model2 <- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + PBDfamC,           correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varIdent(1|PBDfamC)),                            method = "ML" )
+Sys.time()
+model3 <- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + AgeDiff + PBDfamC, correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varPower(form = ~AgeDiff), varIdent(1|PBDfamC)), method = "ML" )
+Sys.time()
+
+# Single two-way interactive effects between Time and Age Difference
+model4 <- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + AgeDiff + dayTimeC:AgeDiff,           correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varPower(form = ~AgeDiff)),                      method = "ML" )
+Sys.time()
+model5 <- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + AgeDiff + PBDfamC + dayTimeC:AgeDiff, correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varPower(form = ~AgeDiff), varIdent(1|PBDfamC)), method = "ML" )
+Sys.time()
+
+# Single two-way interactive effects between Time and Pair Familiarity
+model6<- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + PBDfamC + dayTimeC:PBDfamC,           correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varIdent(~1|PBDfamC)),                           method = "ML" )
+Sys.time()
+model7<- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + PBDfamC + AgeDiff + dayTimeC:PBDfamC, correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varPower(form = ~AgeDiff), varIdent(1|PBDfamC)), method = "ML" )
+Sys.time()
+
+# Additive two-way interactive effect for Age Difference and Pair Familiairty, respectively, with Time
+model8<- gls( clutchTemp ~ 1 + AirTemp + I(AirTemp^2) + I(AirTemp^3) + dayTimeC + layDate + clAge + clVolume + AgeDiff + PBDfamC + dayTimeC:AgeDiff + dayTimeC:PBDfamC, correlation =  corfunc, weights = varComb(varExp(form = ~AirTemp), varIdent(~1|dayTimeC), varPower(form = ~AgeDiff), varIdent(1|PBDfamC)), method = "ML" )
+Sys.time()
+
+# Specify the list of competing models
+allmodels<-model.sel(model0,model1,model2,model3,model4,model5,model6,model7,model8, rank=AICc)
+
+# Return AICc model selection table
+allmodels
+
+# Select the best-ranked candidate models (all models up to 0.95 cumulative weight)
+candidates<-subset(allmodels, cumsum(allmodels$weight) <= 0.95)
+candidates
+
+# Perform Model Averaging on the selected set of candidates
+modav<-model.avg(candidates, revised.var=TRUE)
+summary(modav)
+
+# Obtain 95%CI for the model-averaged estimates (for conditional averaging, set 'full= FALSE')
+coef(modav, full=TRUE)
+confint(modav, full=TRUE)
+
+
+# ----------------- F I G U R E S ----------------- #
+
+# Define a model to plot from
+model2plot <- model7   # Our top-ranked model
+
+# Figure 1. Incubation temperature with mate familiarity
+library(AICcmodavg, quietly = TRUE)
+newdata.Familiar <- data.frame( AirTemp  = c(tapply(AirTemp,  timeCat, mean)[1],
+                                             tapply(AirTemp,  timeCat, mean)[2]),    # AirTempDay,   AirTempNight
+                                layDate  = c(tapply(layDate,  timeCat, mean)[1],
+                                             tapply(layDate,  timeCat, mean)[2]),    # layDateDay,   layDateNight
+                                clAge    = c(tapply(clAge,    timeCat, mean)[1],
+                                             tapply(clAge,    timeCat, mean)[2]),    # clAgeDay,     clAgeNight
+                                clVolume = c(tapply(clVolume, timeCat, mean)[1],
+                                             tapply(clVolume, timeCat, mean)[2]),    # clVolumeDay,  clVolumeNight
+                                AgeDiff  = c(tapply(AgeDiff,  timeCat, mean)[1],
+                                             tapply(AgeDiff,  timeCat, mean)[2]),    # AgeDiffDay,   AgeDiffNight
+                                PBDfamC  = rep( max(PBDfamC), 2 ),                   # FamiliarDay,  FamiliarNight
+                                dayTimeC = c( max(dayTimeC), min(dayTimeC) )   )     # DayTime,      NightTime
+y.pred.Familiar.mean <- predictSE.gls( mod = model2plot, newdata = newdata.Familiar, se.fit=T, print.matrix=T)
+
+newdata.NonFamiliar <- data.frame( AirTemp  = c(tapply(AirTemp,  timeCat, mean)[1],
+                                                tapply(AirTemp,  timeCat, mean)[2]),    # AirTempDay,   AirTempNight
+                                   layDate  = c(tapply(layDate,  timeCat, mean)[1],
+                                                tapply(layDate,  timeCat, mean)[2]),    # layDateDay,   layDateNight
+                                   clAge    = c(tapply(clAge,    timeCat, mean)[1],
+                                                tapply(clAge,    timeCat, mean)[2]),    # clAgeDay,     clAgeNight
+                                   clVolume = c(tapply(clVolume, timeCat, mean)[1],
+                                                tapply(clVolume, timeCat, mean)[2]),    # clVolumeDay,  clVolumeNight
+                                   AgeDiff  = c(tapply(AgeDiff,  timeCat, mean)[1],
+                                                tapply(AgeDiff,  timeCat, mean)[2]),    # AgeDiffDay,   AgeDiffNight
+                                   PBDfamC  = rep( min(PBDfamC), 2 ),                   # NonFamilDay,  NonFamilNight
+                                   dayTimeC = c( max(dayTimeC), min(dayTimeC) )   )     # DayTime,      NightTime
+y.pred.NonFamiliar.mean <- predictSE.gls( mod = model2plot, newdata = newdata.NonFamiliar, se.fit=T, print.matrix=T)
+
+space <- c(-10,-10)
+predicted.mean <- c( space, c(y.pred.Familiar.mean[1,1], y.pred.NonFamiliar.mean[1,1]), space,
+                     c(y.pred.Familiar.mean[2,1], y.pred.NonFamiliar.mean[2,1]), space )  # data[row, column]
+predicted.SE <-   c( space, c(y.pred.Familiar.mean[1,2], y.pred.NonFamiliar.mean[1,2]), space,
+                     c(y.pred.Familiar.mean[2,2], y.pred.NonFamiliar.mean[2,2]), space )  # data[row, column]
+
+predicted.lower <- predicted.mean - (predicted.SE*1) # For 95%CI, multiply by 1.96
+predicted.upper <- predicted.mean + (predicted.SE*1) # For 95%CI, multiply by 1.96
+pdf("figure1.pdf")
+plot(predicted.mean, ylim=c(35.8, 36.3), ylab='',
+     xlab='', xaxt='n',  
+     cex=0, pch= c(space,1,2,space,16,17,space),
+     axis.lty=1.2,
+     cex.lab=1.2,
+     cex.names=1.2,
+     font.lab=1.2,
+     cex.axis=1.2,
+     las=1,
+     mgp=c(3,0.66,0) )
+abline( 36.01395,0, lty=2, col='light grey' )
+par(new=T)
+
+plot(predicted.mean, ylim=c(35.8, 36.3), ylab='Incubation temperature (Â°C)',
+     xlab='Time of day', xaxt='n',  
+     cex=1.75, pch= c(space,16,1,space,16,1,space),
+     axis.lty=1.2,
+     cex.lab=1.2,
+     cex.names=1.2,
+     font.lab=1.2,
+     cex.axis=1.2,
+     las=1,
+     bg = 'transparent',
+     mgp=c(3,0.66,0) )
+arrows( seq(1:14), predicted.lower, 
+        seq(1:14), predicted.upper, 
+        code=3, angle=90, length=0.05 )
+axis(1.2, labels=c('Daytime','Nighttime'), at=c(3.5,7.5), tick=FALSE)
+dev.off()
+```
+
+
+
